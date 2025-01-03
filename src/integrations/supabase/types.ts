@@ -12,18 +12,21 @@ export type Database = {
       budget_categories: {
         Row: {
           created_at: string
+          display_order: number | null
           id: string
           name: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          display_order?: number | null
           id?: string
           name: string
           user_id: string
         }
         Update: {
           created_at?: string
+          display_order?: number | null
           id?: string
           name?: string
           user_id?: string
@@ -32,28 +35,37 @@ export type Database = {
       }
       budget_items: {
         Row: {
+          actual_amount: number | null
           amount: number
           category_id: string
           created_at: string
+          display_order: number | null
           id: string
           is_fixed: boolean
           name: string
+          planned_amount: number | null
         }
         Insert: {
+          actual_amount?: number | null
           amount: number
           category_id: string
           created_at?: string
+          display_order?: number | null
           id?: string
           is_fixed: boolean
           name: string
+          planned_amount?: number | null
         }
         Update: {
+          actual_amount?: number | null
           amount?: number
           category_id?: string
           created_at?: string
+          display_order?: number | null
           id?: string
           is_fixed?: boolean
           name?: string
+          planned_amount?: number | null
         }
         Relationships: [
           {

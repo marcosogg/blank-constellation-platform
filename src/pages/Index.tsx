@@ -1,4 +1,4 @@
-import { BudgetTracker } from "@/components/BudgetTracker";
+import { BudgetTracker } from "@/components/budget/BudgetTracker";
 
 const Index = () => {
   return (
@@ -7,6 +7,6 @@ const Index = () => {
       <BudgetTracker />
     </div>
   );
-};
+}
 
 export default Index;
