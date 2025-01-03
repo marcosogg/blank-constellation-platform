@@ -15,10 +15,21 @@ export function BudgetTracker() {
 
   const loadBudgetData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user found");
+      // First, ensure we have an authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) throw userError;
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to view budget data",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const { data: existingCategories } = await supabase
+      // Load existing categories for the user
+      const { data: existingCategories, error: categoriesError } = await supabase
         .from("budget_categories")
         .select(`
           id,
@@ -29,7 +40,10 @@ export function BudgetTracker() {
             amount,
             is_fixed
           )
-        `);
+        `)
+        .eq('user_id', user.id);
+
+      if (categoriesError) throw categoriesError;
 
       if (!existingCategories?.length) {
         await createInitialBudget(user.id);
@@ -42,7 +56,6 @@ export function BudgetTracker() {
           }))
         );
       }
-      setIsLoading(false);
     } catch (error) {
       console.error("Error loading budget data:", error);
       toast({
@@ -50,20 +63,27 @@ export function BudgetTracker() {
         description: "Failed to load budget data",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const createInitialBudget = async (userId: string) => {
     try {
       for (const category of DEFAULT_CATEGORIES) {
+        // Create category with user_id
         const { data: categoryData, error: categoryError } = await supabase
           .from("budget_categories")
-          .insert({ name: category.name, user_id: userId })
+          .insert({ 
+            name: category.name, 
+            user_id: userId 
+          })
           .select()
           .single();
 
         if (categoryError) throw categoryError;
 
+        // Create budget items for this category
         const itemsToInsert = category.items.map((item) => ({
           ...item,
           category_id: categoryData.id,
@@ -75,6 +95,8 @@ export function BudgetTracker() {
 
         if (itemsError) throw itemsError;
       }
+      
+      // Reload the budget data to show the new categories
       await loadBudgetData();
     } catch (error) {
       console.error("Error creating initial budget:", error);
