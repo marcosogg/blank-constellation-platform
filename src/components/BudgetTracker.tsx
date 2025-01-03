@@ -1,48 +1,11 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-
-type BudgetCategory = {
-  id: string;
-  name: string;
-  items: BudgetItem[];
-};
-
-type BudgetItem = {
-  id: string;
-  name: string;
-  amount: number;
-  is_fixed: boolean;
-};
-
-const DEFAULT_CATEGORIES = [
-  {
-    name: "Housing & Utilities",
-    items: [
-      { name: "Rent/Mortgage", amount: 1500, is_fixed: true },
-      { name: "Utilities", amount: 200, is_fixed: false },
-    ],
-  },
-  {
-    name: "Transportation",
-    items: [
-      { name: "Car Payment", amount: 300, is_fixed: true },
-      { name: "Fuel", amount: 150, is_fixed: false },
-    ],
-  },
-  {
-    name: "Food & Groceries",
-    items: [
-      { name: "Groceries", amount: 400, is_fixed: false },
-      { name: "Dining Out", amount: 200, is_fixed: false },
-    ],
-  },
-];
+import { BudgetCategory as BudgetCategoryType, DEFAULT_CATEGORIES } from "./budget/types";
+import { BudgetCategory } from "./budget/BudgetCategory";
 
 export function BudgetTracker() {
-  const [categories, setCategories] = useState<BudgetCategory[]>([]);
+  const [categories, setCategories] = useState<BudgetCategoryType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -52,6 +15,9 @@ export function BudgetTracker() {
 
   const loadBudgetData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const { data: existingCategories } = await supabase
         .from("budget_categories")
         .select(`
@@ -66,7 +32,7 @@ export function BudgetTracker() {
         `);
 
       if (!existingCategories?.length) {
-        await createInitialBudget();
+        await createInitialBudget(user.id);
       } else {
         setCategories(
           existingCategories.map((cat) => ({
@@ -87,12 +53,12 @@ export function BudgetTracker() {
     }
   };
 
-  const createInitialBudget = async () => {
+  const createInitialBudget = async (userId: string) => {
     try {
       for (const category of DEFAULT_CATEGORIES) {
         const { data: categoryData, error: categoryError } = await supabase
           .from("budget_categories")
-          .insert({ name: category.name })
+          .insert({ name: category.name, user_id: userId })
           .select()
           .single();
 
@@ -168,37 +134,15 @@ export function BudgetTracker() {
   return (
     <div className="space-y-6">
       {categories.map((category) => (
-        <Card key={category.id}>
-          <CardHeader>
-            <CardTitle>{category.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {category.items.map((item) => (
-              <div key={item.id} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">
-                    {item.name}
-                    {item.is_fixed && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        (Fixed)
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-sm font-medium">${item.amount}</span>
-                </div>
-                <Slider
-                  defaultValue={[item.amount]}
-                  max={item.amount * 2}
-                  step={10}
-                  disabled={item.is_fixed}
-                  onValueChange={([value]) => {
-                    updateItemAmount(category.id, item.id, value);
-                  }}
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <BudgetCategory
+          key={category.id}
+          id={category.id}
+          name={category.name}
+          items={category.items}
+          onUpdateAmount={(itemId, amount) =>
+            updateItemAmount(category.id, itemId, amount)
+          }
+        />
       ))}
     </div>
   );
