@@ -1,11 +1,48 @@
 import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { BudgetCategory as BudgetCategoryType, DEFAULT_CATEGORIES } from "./budget/types";
-import { BudgetCategory } from "./budget/BudgetCategory";
+
+type BudgetCategory = {
+  id: string;
+  name: string;
+  items: BudgetItem[];
+};
+
+type BudgetItem = {
+  id: string;
+  name: string;
+  amount: number;
+  is_fixed: boolean;
+};
+
+const DEFAULT_CATEGORIES = [
+  {
+    name: "Housing & Utilities",
+    items: [
+      { name: "Rent/Mortgage", amount: 1500, is_fixed: true },
+      { name: "Utilities", amount: 200, is_fixed: false },
+    ],
+  },
+  {
+    name: "Transportation",
+    items: [
+      { name: "Car Payment", amount: 300, is_fixed: true },
+      { name: "Fuel", amount: 150, is_fixed: false },
+    ],
+  },
+  {
+    name: "Food & Groceries",
+    items: [
+      { name: "Groceries", amount: 400, is_fixed: false },
+      { name: "Dining Out", amount: 200, is_fixed: false },
+    ],
+  },
+];
 
 export function BudgetTracker() {
-  const [categories, setCategories] = useState<BudgetCategoryType[]>([]);
+  const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -15,21 +52,7 @@ export function BudgetTracker() {
 
   const loadBudgetData = async () => {
     try {
-      // First, ensure we have an authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) throw userError;
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to view budget data",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Load existing categories for the user
-      const { data: existingCategories, error: categoriesError } = await supabase
+      const { data: existingCategories } = await supabase
         .from("budget_categories")
         .select(`
           id,
@@ -40,13 +63,10 @@ export function BudgetTracker() {
             amount,
             is_fixed
           )
-        `)
-        .eq('user_id', user.id);
-
-      if (categoriesError) throw categoriesError;
+        `);
 
       if (!existingCategories?.length) {
-        await createInitialBudget(user.id);
+        await createInitialBudget();
       } else {
         setCategories(
           existingCategories.map((cat) => ({
@@ -56,6 +76,7 @@ export function BudgetTracker() {
           }))
         );
       }
+      setIsLoading(false);
     } catch (error) {
       console.error("Error loading budget data:", error);
       toast({
@@ -63,27 +84,20 @@ export function BudgetTracker() {
         description: "Failed to load budget data",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const createInitialBudget = async (userId: string) => {
+  const createInitialBudget = async () => {
     try {
       for (const category of DEFAULT_CATEGORIES) {
-        // Create category with user_id
         const { data: categoryData, error: categoryError } = await supabase
           .from("budget_categories")
-          .insert({ 
-            name: category.name, 
-            user_id: userId 
-          })
+          .insert({ name: category.name })
           .select()
           .single();
 
         if (categoryError) throw categoryError;
 
-        // Create budget items for this category
         const itemsToInsert = category.items.map((item) => ({
           ...item,
           category_id: categoryData.id,
@@ -95,8 +109,6 @@ export function BudgetTracker() {
 
         if (itemsError) throw itemsError;
       }
-      
-      // Reload the budget data to show the new categories
       await loadBudgetData();
     } catch (error) {
       console.error("Error creating initial budget:", error);
@@ -156,15 +168,37 @@ export function BudgetTracker() {
   return (
     <div className="space-y-6">
       {categories.map((category) => (
-        <BudgetCategory
-          key={category.id}
-          id={category.id}
-          name={category.name}
-          items={category.items}
-          onUpdateAmount={(itemId, amount) =>
-            updateItemAmount(category.id, itemId, amount)
-          }
-        />
+        <Card key={category.id}>
+          <CardHeader>
+            <CardTitle>{category.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {category.items.map((item) => (
+              <div key={item.id} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">
+                    {item.name}
+                    {item.is_fixed && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        (Fixed)
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm font-medium">${item.amount}</span>
+                </div>
+                <Slider
+                  defaultValue={[item.amount]}
+                  max={item.amount * 2}
+                  step={10}
+                  disabled={item.is_fixed}
+                  onValueChange={([value]) => {
+                    updateItemAmount(category.id, item.id, value);
+                  }}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
