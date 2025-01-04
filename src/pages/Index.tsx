@@ -168,7 +168,7 @@ const BudgetTracker = () => {
                             </span>
                           </div>
                           <div className="col-span-2">
-                            <Badge variant="secondary">
+                            <Badge variant="secondary" className={`${isLocked ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
                               {isLocked ? 'Fixed' : 'Variable'}
                             </Badge>
                           </div>
