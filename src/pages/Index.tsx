@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Input } from '@/components/ui/input';
 
 const BudgetTracker = () => {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ const BudgetTracker = () => {
 
   const [budget, setBudget] = useState(initialBudget);
   const [lockedItems, setLockedItems] = useState<{ [key: string]: boolean }>({});
+  const [income, setIncome] = useState(2700); // Initial income
 
   const handleValueChange = (category, item, value) => {
     setBudget(prev => ({
@@ -77,6 +79,10 @@ const BudgetTracker = () => {
       ...prev,
       [`${category}-${item}`]: !prev[`${category}-${item}`]
     }));
+  };
+
+  const handleIncomeChange = (event) => {
+    setIncome(parseFloat(event.target.value) || 0);
   };
 
   const calculateTotals = () => {
@@ -127,6 +133,16 @@ const BudgetTracker = () => {
 
         <CardContent className="p-6">
           <div className="space-y-6">
+            {/* Income Input */}
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium w-32">Monthly Income:</span>
+              <Input
+                type="number"
+                value={income}
+                onChange={handleIncomeChange}
+                className="w-48"
+              />
+            </div>
             {Object.entries(budget).map(([category, { items }]) => {
               const categoryTotal = calculateCategoryTotal(items);
               return (
@@ -188,6 +204,7 @@ const BudgetTracker = () => {
                 </div>
               );
             })}
+            {/* Budget Summary */}
             <div className="bg-gray-50 p-4 rounded-lg mt-6">
               <div className="space-y-2">
                 <div className="grid grid-cols-2 text-sm">
@@ -200,15 +217,18 @@ const BudgetTracker = () => {
                 </div>
                 <div className="grid grid-cols-2 text-lg font-semibold border-t pt-2 mt-2">
                   <span>Total:</span>
-                  <span className={`${totals.total > 2700 ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`${totals.total > income ? 'text-red-600' : 'text-green-600'}`}>
                     €{totals.total}
-                    {totals.total > 2700 && (
-                      <span className="text-sm ml-2">(€{(totals.total - 2700).toFixed(2)} over budget)</span>
+                    {totals.total > income && (
+                      <span className="text-sm ml-2">(€{(totals.total - income).toFixed(2)} over budget)</span>
+                    )}
+                    {totals.total <= income && (
+                      <span className="text-sm ml-2">(€{(income - totals.total).toFixed(2)} under budget)</span>
                     )}
                   </span>
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  Monthly Budget: €2,700
+                  Monthly Income: €{income}
                 </div>
               </div>
             </div>
