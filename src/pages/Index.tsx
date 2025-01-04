@@ -89,9 +89,9 @@ const BudgetTracker = () => {
     let total = 0;
     let fixedTotal = 0;
     let variableTotal = 0;
-
-    Object.values(budget).forEach(category => {
-      Object.entries(category.items).forEach(([item, { amount }]) => {
+  
+    Object.entries(budget).forEach(([category, { items }]) => {
+      Object.entries(items).forEach(([item, { amount }]) => {
         const isLocked = lockedItems[`${category}-${item}`];
         total += amount;
         if (isLocked) {
@@ -101,7 +101,7 @@ const BudgetTracker = () => {
         }
       });
     });
-
+  
     return { total, fixedTotal, variableTotal };
   };
 
