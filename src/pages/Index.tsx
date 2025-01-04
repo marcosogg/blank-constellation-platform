@@ -1,58 +1,60 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Euro, Lock } from 'lucide-react';
+import { Euro, Lock, Unlock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 const BudgetTracker = () => {
   const navigate = useNavigate();
   const initialBudget = {
     'Housing & Utilities': {
       items: {
-        'Rent': { amount: 1000, isFixed: true },
-        'Energy/Gas': { amount: 150, isFixed: false },
-        'Internet': { amount: 40, isFixed: true },
-        'Phone Plan': { amount: 25, isFixed: true },
+        'Rent': { amount: 1000 },
+        'Energy/Gas': { amount: 150 },
+        'Internet': { amount: 40 },
+        'Phone Plan': { amount: 25 },
       }
     },
     'Essential Living': {
       items: {
-        'Groceries': { amount: 150, isFixed: false },
-        'Pharmacy': { amount: 50, isFixed: false },
+        'Groceries': { amount: 150 },
+        'Pharmacy': { amount: 50 },
       }
     },
     'Transportation': {
       items: {
-        'Monthly Transport Pass': { amount: 40, isFixed: true },
+        'Monthly Transport Pass': { amount: 40 },
       }
     },
     'Food & Dining': {
       items: {
-        'Eating Out': { amount: 300, isFixed: false },
-        'Coffee & Snacks': { amount: 100, isFixed: false },
-        'Food Delivery': { amount: 100, isFixed: false },
+        'Eating Out': { amount: 300 },
+        'Coffee & Snacks': { amount: 100 },
+        'Food Delivery': { amount: 100 },
       }
     },
     'Technology & Services': {
       items: {
-        'Online Subscriptions': { amount: 80, isFixed: false },
+        'Online Subscriptions': { amount: 80 },
       }
     },
     'Personal Care': {
       items: {
-        'Grooming': { amount: 60, isFixed: false },
+        'Grooming': { amount: 60 },
       }
     },
     'Savings & Investment': {
       items: {
-        'Emergency Fund': { amount: 250, isFixed: false },
-        'Brazil Expenses': { amount: 200, isFixed: false },
+        'Emergency Fund': { amount: 250 },
+        'Brazil Expenses': { amount: 200 },
       }
     }
   };
 
   const [budget, setBudget] = useState(initialBudget);
+  const [lockedItems, setLockedItems] = useState<{ [key: string]: boolean }>({});
 
   const handleValueChange = (category, item, value) => {
     setBudget(prev => ({
@@ -70,18 +72,26 @@ const BudgetTracker = () => {
     }));
   };
 
+  const handleLockToggle = (category, item) => {
+    setLockedItems(prev => ({
+      ...prev,
+      [`${category}-${item}`]: !prev[`${category}-${item}`]
+    }));
+  };
+
   const calculateTotals = () => {
     let total = 0;
     let fixedTotal = 0;
     let variableTotal = 0;
 
     Object.values(budget).forEach(category => {
-      Object.values(category.items).forEach(item => {
-        total += item.amount;
-        if (item.isFixed) {
-          fixedTotal += item.amount;
+      Object.entries(category.items).forEach(([item, { amount }]) => {
+        const isLocked = lockedItems[`${category}-${item}`];
+        total += amount;
+        if (isLocked) {
+          fixedTotal += amount;
         } else {
-          variableTotal += item.amount;
+          variableTotal += amount;
         }
       });
     });
@@ -109,12 +119,12 @@ const BudgetTracker = () => {
             2025 Budget Tracker
           </CardTitle>
           <div className="ml-auto">
-          <Button onClick={handleLogout} variant="outline">
-            Logout
-          </Button>
-        </div>
+            <Button onClick={handleLogout} variant="outline">
+              Logout
+            </Button>
+          </div>
         </CardHeader>
-        
+
         <CardContent className="p-6">
           <div className="space-y-6">
             {Object.entries(budget).map(([category, { items }]) => {
@@ -123,33 +133,48 @@ const BudgetTracker = () => {
                 <div key={category} className="border rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-gray-700">{category}</h3>
                   <div className="space-y-3">
-                    {Object.entries(items).map(([item, { amount, isFixed }]) => (
-                      <div key={item} className="grid grid-cols-12 gap-4 items-center">
-                        <div className="col-span-4 flex items-center gap-2">
-                          <span className="text-sm text-gray-600">{item}</span>
-                          {isFixed && (
-                            <Lock className="w-4 h-4 text-blue-500" />
-                          )}
+                    {Object.entries(items).map(([item, { amount }]) => {
+                      const isLocked = lockedItems[`${category}-${item}`];
+                      return (
+                        <div key={item} className="grid grid-cols-12 gap-4 items-center">
+                          <div className="col-span-4 flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isLocked}
+                              onChange={() => handleLockToggle(category, item)}
+                            />
+                            <span className="text-sm text-gray-600">{item}</span>
+                            {isLocked ? (
+                              <Lock className="w-4 h-4 text-blue-500" />
+                            ) : (
+                              <Unlock className="w-4 h-4 text-green-500" />
+                            )}
+                          </div>
+                          <div className="col-span-4">
+                            <input
+                              type="range"
+                              min="0"
+                              max={amount > 1000 ? amount * 2 : 1000}
+                              value={amount}
+                              step="10"
+                              onChange={(e) => handleValueChange(category, item, Math.round(e.target.value / 10) * 10)}
+                              className={`w-full ${isLocked ? 'accent-blue-500' : 'accent-gray-500'}`}
+                              disabled={isLocked}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <span className={`text-sm font-medium ${isLocked ? 'text-blue-600' : ''}`}>
+                              €{amount}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <Badge variant="secondary">
+                              {isLocked ? 'Fixed' : 'Variable'}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="col-span-5">
-                          <input
-                            type="range"
-                            min="0"
-                            max={amount > 1000 ? amount * 2 : 1000}
-                            value={amount}
-                            step="10"
-            onChange={(e) => handleValueChange(category, item, Math.round(e.target.value / 10) * 10)}
-                            className={`w-full ${isFixed ? 'accent-blue-500' : 'accent-gray-500'}`}
-                            disabled={isFixed}
-                          />
-                        </div>
-                        <div className="col-span-3">
-                          <span className={`text-sm font-medium ${isFixed ? 'text-blue-600' : ''}`}>
-                            €{amount}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div className="grid grid-cols-12 gap-4 pt-2 border-t mt-2">
                       <div className="col-span-4">
                         <span className="text-sm font-medium">Subtotal</span>
